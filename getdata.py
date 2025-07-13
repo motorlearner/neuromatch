@@ -167,5 +167,10 @@ def process_data(data:pd.DataFrame):
 # PROCESS DATA ----------------------------------------------------------------
 
 df = process_data(data)
-# print info
-df.head(10)
+
+
+#  PRINT INFO -----------------------------------------------------------------
+
+print('Data processing finished. See the function documentation for help:\n\n')
+print(help(process_data))
+print(df.head(10))
