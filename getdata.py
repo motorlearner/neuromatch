@@ -141,9 +141,9 @@ def process_data(data:pd.DataFrame):
   df.rename(columns=cols_rename, inplace=True)
   # add new columns...
   # ...stimuli
-  df['stim_deg_tm1'] = df.groupby(['subject_id', 'run_id'])['stim_deg'].shift(1)
-  df['stim_delta']   = circdiff(df.stim_deg, df.stim_deg_tm1)
-  df['stim_rel']     = circdiff(df.stim_deg, df.prior_mean)
+  df['stim_deg_tm1']   = df.groupby(['subject_id', 'run_id'])['stim_deg'].shift(1)
+  df['stim_deg_delta'] = circdiff(df.stim_deg, df.stim_deg_tm1)
+  df['stim_rel']       = circdiff(df.stim_deg, df.prior_mean)
   # ...responses
   df['resp_deg'], df['resp_mag'] = cart2pol(df.resp_x, df.resp_y)
   df['resp_rel'] = circdiff(df.resp_deg, df.prior_mean)
@@ -200,7 +200,7 @@ data_cols = {
   'err'               : 'Response error in degrees.',
   'err_tm1'           : 'Response error in degrees from trial t-1.',
   'err_toprior'       : 'Same as `err` but sign is positive if towards `prior_mean`.',
-  'err_toprior_norm'  : 'Same as `err_prior` but normalized by `stim_rel`.',
+  'err_toprior_norm'  : 'Same as `err_toprior` but normalized by `stim_rel`.',
   'err_awaytm1'       : 'Same as `err` but sign is positive if away from `stim_deg_tm1`.',
 }
 
