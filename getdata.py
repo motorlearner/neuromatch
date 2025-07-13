@@ -151,7 +151,7 @@ def process_data(data:pd.DataFrame):
   df['err'] = circdiff(df.resp_deg, df.stim_deg)
   df['err_tm1'] = df.groupby(['subject_id', 'run_id'])['err'].shift(1)
   df['err_toprior'] = np.where(df.stim_rel * df.err < 0, np.abs(df.err), -np.abs(df.err))
-  df['err_toprior_norm'] = np.where(df.stim_rel != 0, df.err_prior / np.abs(df.stim_rel), np.nan)
+  df['err_toprior_norm'] = np.where(df.stim_rel != 0, df.err_toprior / np.abs(df.stim_rel), np.nan)
   df['err_awaytm1'] = np.sign(df['stim_delta']) * df['err']
 
   # reorder columns
