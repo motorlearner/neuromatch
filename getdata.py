@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import ipywidgets as widgets
+import textwrap
 
 
 # PLOT UTILS ------------------------------------------------------------------
@@ -88,7 +88,10 @@ def circdiff(angle:np.array, reference:np.array):
   Returns:
       Signed circular distance in degrees (-180, 180].
   """
-  return ((angle - reference + 180) % 360) - 180
+  # compute
+  diff = ((angle - reference + 180) % 360) - 180
+  diff[diff == -180] = 180
+  return diff
 
 
 def process_data(data:pd.DataFrame):
@@ -100,26 +103,7 @@ def process_data(data:pd.DataFrame):
     `data`: original dataframe
 
   Returns:
-    Dataframe with the following columns:
-      - `subject_id` (int identifying subject)
-      - `session_id` (int identifying session within a subject)
-      - `run_id` (int identifying the run or block with a session)
-      - `trial_id` (int identifying trial within run)
-      - `trial_time` (start time of trial, first trial of run starts at 0)
-      - `prior_mean` (prior mean in deg, always 225)
-      - `prior_sd` (prior sd in deg, one of 10,20,40,80)
-      - `stim_deg` (stimulus orientation in deg, one of 5,15,25,...355)
-      - `stim_rel` (stimulus orientation relative to prior mean, from -180 to 180)
-      - `stim_coh` (stimulus coherence, one of 6,12,24)
-      - `init_deg` (initiation angle for response)
-      - `rt` (reaction time)
-      - `resp_x, resp_y`(cartesian response coords: x and y)
-      - `resp_deg, resp_mag` (polar response coords: degrees and magnitude)
-      - `resp_rel` (response degrees relative to prior mean, from -180 to 180)
-      - `err` (response error in degrees)
-      - `err_prev` (previous trial response error within a given run)
-      - `err_prior` (same as `err` but sign is positive if in direction of prior mean)
-      - `err_priornorm` (same as `err_prior` but normalized to distance of stimulus to prior mean)
+    Dataframe.
   """
   # columns to discard
   cols_remove = ['experiment_id', 'experiment_name', 'raw_response_time']
@@ -141,36 +125,87 @@ def process_data(data:pd.DataFrame):
   }
   # final column order
   cols_final = [
+    # experiment
     'subject_id', 'session_id', 'run_id', 'trial_id', 'trial_time',
-    'prior_mean', 'prior_sd', 'stim_deg', 'stim_rel', 'stim_coh',
+    # stimuli
+    'prior_mean', 'prior_sd', 'stim_deg', 'stim_deg_tm1', 'stim_deg_delta', 'stim_rel', 'stim_coh',
+    # responses
     'init_deg', 'rt', 'resp_x', 'resp_y', 'resp_deg', 'resp_rel',
-    'err', 'err_prev', 'err_prior', 'err_priornorm'
+    # response errors
+    'err', 'err_tm1', 'err_toprior', 'err_toprior_norm'
   ]
   # create deep copy
   df = data.copy()
   # drop or rename columns
   df.drop(cols_remove, axis=1, inplace=True)
   df.rename(columns=cols_rename, inplace=True)
-  # add new columns
-  df['stim_rel'] = circdiff(df.stim_deg, df.prior_mean)
+  # add new columns...
+  # ...stimuli
+  df['stim_deg_tm1'] = df.groupby(['subject_id', 'run_id'])['stim_deg'].shift(1)
+  df['stim_delta']   = circdiff(df.stim_deg, df.stim_deg_tm1)
+  df['stim_rel']     = circdiff(df.stim_deg, df.prior_mean)
+  # ...responses
   df['resp_deg'], df['resp_mag'] = cart2pol(df.resp_x, df.resp_y)
   df['resp_rel'] = circdiff(df.resp_deg, df.prior_mean)
+  # ...errors
   df['err'] = circdiff(df.resp_deg, df.stim_deg)
-  df['err_prev'] = df.groupby(['subject_id', 'run_id'])['err'].shift(1)
-  df['err_prior'] = np.where(df.stim_rel * df.err < 0, np.abs(df.err), -np.abs(df.err))
-  df['err_priornorm'] = np.where(df.stim_rel != 0, df.err_prior / np.abs(df.stim_rel), np.nan)
+  df['err_tm1'] = df.groupby(['subject_id', 'run_id'])['err'].shift(1)
+  df['err_toprior'] = np.where(df.stim_rel * df.err < 0, np.abs(df.err), -np.abs(df.err))
+  df['err_toprior_norm'] = np.where(df.stim_rel != 0, df.err_prior / np.abs(df.stim_rel), np.nan)
+  df['err_awaytm1'] = np.sign(df['stim_delta']) * df['err']
 
   # reorder columns
   return df[cols_final]
 
 
-# PROCESS DATA ----------------------------------------------------------------
+#  HELPERS: PRINT INFO -----------------------------------------------------------------
+
+
+def print_dfcols(df:pd.DataFrame, col_dict:dict[str, str], width:int=100):
+  # check for missing and extra columns
+  missing_cols = set(col_dict) - set(df.columns)
+  extra_cols   = set(df.columns) - set(col_dict)
+  if missing_cols:
+    raise ValueError(f"Missing columns in df: {missing_cols}")
+  if extra_cols:
+    raise ValueError(f"Unexpected columns in df not in col_dict: {extra_cols}")
+  # print formatted descriptions
+  for col, desc in col_dict.items():
+    print(f"{col}")
+    for line in textwrap.wrap(desc, width=width):
+      print(f"  {line}")
+    print()
+
+
+data_cols = {
+  'subject_id'        : 'Integer identifying subject.',
+  'session_id'        : 'Integer identifying session within a subject.',
+  'run_id'            : 'Integer identifying the run within a session.',
+  'trial_id'          : 'Integer identifying trial within run.',
+  'trial_time'        : 'Start time of trial within run; first trial starts at 0.',
+  'prior_mean'        : 'Prior mean in degrees, always 225.',
+  'prior_sd'          : 'Prior standard deviation in degrees, one of 10,20,40,80.',
+  'stim_deg'          : 'Stimulus orientation in degrees, one of 5,15,25,...355.',
+  'stim_deg_tm1'      : 'Stimulus orientation in degrees from trial t-1.',
+  'stim_deg_delta'    : 'Angular distance of `stim_deg` relative to `stim_deg_tm1.',
+  'stim_rel'          : 'Stimulus orientation relative to prior mean, in (-180,+180].',
+  'stim_coh'          : 'Stimulus coherence, one of 6,12,24.',
+  'init_deg'          : 'Initiation angle for response.',
+  'rt'                : 'Reaction time.',
+  'resp_x'            : 'Response x-coordinate (cartesian).',
+  'resp_y'            : 'Response y-coordinate (cartesian).',
+  'resp_deg'          : 'Response angle in degrees (polar), in [0,360).',
+  'resp_mag'          : 'Response magnitude (polar).',
+  'resp_rel'          : 'Response angle in degrees relative to prior mean, in (-180,+180].',
+  'err'               : 'Response error in degrees.',
+  'err_tm1'           : 'Response error in degrees from trial t-1.',
+  'err_toprior'       : 'Same as `err` but sign is positive if towards `prior_mean`.',
+  'err_toprior_norm'  : 'Same as `err_prior` but normalized by `stim_rel`.',
+  'err_awaytm1'       : 'Same as `err` but sign is positive if away from `stim_deg_tm1`.',
+}
+
+
+# PROCESS DATA, PRINT INFO  ---------------------------------------------------
 
 df = process_data(data)
-
-
-#  PRINT INFO -----------------------------------------------------------------
-
-print('Data processing finished. See the function documentation for help:\n\n')
-print(help(process_data))
-print(df.head(10))
+print_dfcols(df, data_cols)
