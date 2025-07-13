@@ -130,9 +130,9 @@ def process_data(data:pd.DataFrame):
     # stimuli
     'prior_mean', 'prior_sd', 'stim_deg', 'stim_deg_tm1', 'stim_deg_delta', 'stim_rel', 'stim_coh',
     # responses
-    'init_deg', 'rt', 'resp_x', 'resp_y', 'resp_deg', 'resp_rel',
+    'init_deg', 'rt', 'resp_x', 'resp_y', 'resp_mag', 'resp_deg', 'resp_rel',
     # response errors
-    'err', 'err_tm1', 'err_toprior', 'err_toprior_norm'
+    'err', 'err_tm1', 'err_toprior', 'err_toprior_norm', 'err_awaytm1',
   ]
   # create deep copy
   df = data.copy()
@@ -174,7 +174,6 @@ def print_dfcols(df:pd.DataFrame, col_dict:dict[str, str], width:int=100):
     print(f"{col}")
     for line in textwrap.wrap(desc, width=width):
       print(f"  {line}")
-    print()
 
 
 data_cols = {
@@ -187,7 +186,7 @@ data_cols = {
   'prior_sd'          : 'Prior standard deviation in degrees, one of 10,20,40,80.',
   'stim_deg'          : 'Stimulus orientation in degrees, one of 5,15,25,...355.',
   'stim_deg_tm1'      : 'Stimulus orientation in degrees from trial t-1.',
-  'stim_deg_delta'    : 'Angular distance of `stim_deg` relative to `stim_deg_tm1.',
+  'stim_deg_delta'    : 'Angular distance of `stim_deg` relative to `stim_deg_tm1`.',
   'stim_rel'          : 'Stimulus orientation relative to prior mean, in (-180,+180].',
   'stim_coh'          : 'Stimulus coherence, one of 6,12,24.',
   'init_deg'          : 'Initiation angle for response.',
