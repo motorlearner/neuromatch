@@ -132,7 +132,7 @@ def process_data(data:pd.DataFrame):
     # responses
     'init_deg', 'rt', 'resp_x', 'resp_y', 'resp_mag', 'resp_deg', 'resp_rel',
     # response errors
-    'err', 'err_tm1', 'err_toprior', 'err_toprior_norm', 'err_awaytm1',
+    'err', 'err_tm1', 'err_toprior', 'err_toprior_norm', 'err_totm1',
   ]
   # create deep copy
   df = data.copy()
@@ -152,7 +152,7 @@ def process_data(data:pd.DataFrame):
   df['err_tm1'] = df.groupby(['subject_id', 'run_id'])['err'].shift(1)
   df['err_toprior'] = np.where(df.stim_rel * df.err < 0, np.abs(df.err), -np.abs(df.err))
   df['err_toprior_norm'] = np.where(df.stim_rel != 0, df.err_toprior / np.abs(df.stim_rel), np.nan)
-  df['err_awaytm1'] = np.where(df.stim_deg_delta * df.err >= 0, np.abs(df.err), -np.abs(df.err))
+  df['err_totm1'] = np.where(df.stim_deg_delta * df.err < 0, np.abs(df.err), -np.abs(df.err))
 
   # reorder columns
   return df[cols_final]
@@ -200,7 +200,7 @@ data_cols = {
   'err_tm1'           : 'Response error in degrees from trial t-1.',
   'err_toprior'       : 'Same as `err` but sign is positive if towards `prior_mean`.',
   'err_toprior_norm'  : 'Same as `err_toprior` but normalized by `stim_rel`.',
-  'err_awaytm1'       : 'Same as `err` but sign is positive if away from `stim_deg_tm1`.',
+  'err_totm1'         : 'Same as `err` but sign is positive if towards `stim_deg_tm1`.',
 }
 
 
